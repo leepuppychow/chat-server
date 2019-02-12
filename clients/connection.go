@@ -2,6 +2,7 @@ package clients
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 )
 
@@ -11,7 +12,7 @@ func HandleConn(conn net.Conn, entering, leaving chan Client, messages chan stri
 	ch := make(chan string)
 	go ClientWriter(conn, ch)
 	who := conn.RemoteAddr().String()
-	ch <- "You are" + who
+	ch <- "You are " + who
 	messages <- who + " has arrived"
 	entering <- ch
 
@@ -23,4 +24,10 @@ func HandleConn(conn net.Conn, entering, leaving chan Client, messages chan stri
 	leaving <- ch
 	messages <- who + " has left."
 	conn.Close()
+}
+
+func ClientWriter(conn net.Conn, ch <-chan string) {
+	for msg := range ch {
+		fmt.Fprintln(conn, msg)
+	}
 }

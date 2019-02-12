@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 
@@ -16,6 +17,7 @@ var (
 
 func main() {
 	listener, err := net.Listen("tcp", "localhost:8080")
+	fmt.Println("Chat server running on port 8080")
 	if err != nil {
 		log.Fatal(err)
 	}
