@@ -1,4 +1,4 @@
-package clients
+package server
 
 import (
 	"bufio"
@@ -7,6 +7,23 @@ import (
 )
 
 type Client chan<- string
+
+func Broadcaster(entering, leaving chan Client, messages chan string) {
+	clients := make(map[Client]bool)
+	for {
+		select {
+		case msg := <-messages:
+			for c := range clients {
+				c <- msg
+			}
+		case c := <-entering:
+			clients[c] = true
+		case c := <-leaving:
+			delete(clients, c)
+			close(c)
+		}
+	}
+}
 
 func HandleConn(conn net.Conn, entering, leaving chan Client, messages chan string) {
 	ch := make(chan string)

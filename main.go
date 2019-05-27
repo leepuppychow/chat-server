@@ -5,13 +5,12 @@ import (
 	"log"
 	"net"
 
-	"github.com/leepuppychow/chat-server/clients"
-	"github.com/leepuppychow/chat-server/server"
+	s "github.com/leepuppychow/chat-server/server"
 )
 
 var (
-	entering = make(chan clients.Client)
-	leaving  = make(chan clients.Client)
+	entering = make(chan s.Client)
+	leaving  = make(chan s.Client)
 	messages = make(chan string)
 )
 
@@ -21,13 +20,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go server.Broadcaster(entering, leaving, messages)
+	go s.Broadcaster(entering, leaving, messages)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		go clients.HandleConn(conn, entering, leaving, messages)
+		go s.HandleConn(conn, entering, leaving, messages)
 	}
 }
