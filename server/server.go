@@ -7,12 +7,18 @@ import (
 	"strings"
 )
 
+var (
+	entering = make(chan Client)
+	leaving  = make(chan Client)
+	messages = make(chan string)
+)
+
 type Client struct {
 	name string
 	out  chan<- string
 }
 
-func Broadcaster(entering, leaving chan Client, messages chan string) {
+func Broadcaster() {
 	clients := make(map[Client]bool)
 	for {
 		select {
@@ -41,33 +47,43 @@ func displayAll(clients map[Client]bool) {
 	}
 }
 
-func HandleConn(conn net.Conn, entering, leaving chan Client, messages chan string) {
+func HandleConn(conn net.Conn) {
 	ch := make(chan string)
 	go ClientWriter(conn, ch)
 
-	reader := bufio.NewReader(conn)
-	ch <- "Enter Username: "
-	name, _ := reader.ReadString('\n')
-
-	newClient := Client{
-		out:  ch,
-		name: strings.TrimSpace(name),
-	}
-	entering <- newClient
-	messages <- newClient.name + " has arrived"
-
-	input := bufio.NewScanner(conn)
-	for input.Scan() {
-		messages <- newClient.name + ": " + input.Text()
-	}
-
-	leaving <- newClient
-	messages <- newClient.name + " has left."
-	conn.Close()
+	newClient := CreateNewClient(conn, ch)
+	SendClientMessage(&newClient, conn)
+	ClientLeaving(&newClient, conn)
 }
 
 func ClientWriter(conn net.Conn, ch <-chan string) {
 	for msg := range ch {
 		fmt.Fprintln(conn, msg)
 	}
+}
+
+func CreateNewClient(conn net.Conn, ch chan string) Client {
+	reader := bufio.NewReader(conn)
+	ch <- "Enter Username: "
+	name, _ := reader.ReadString('\n') // Ignoring errors here
+	newClient := Client{
+		out:  ch,
+		name: strings.TrimSpace(name),
+	}
+	entering <- newClient
+	messages <- newClient.name + " has arrived"
+	return newClient
+}
+
+func SendClientMessage(client *Client, conn net.Conn) {
+	input := bufio.NewScanner(conn)
+	for input.Scan() {
+		messages <- client.name + ": " + input.Text()
+	}
+}
+
+func ClientLeaving(client *Client, conn net.Conn) {
+	leaving <- *client
+	messages <- client.name + " has left."
+	conn.Close()
 }
