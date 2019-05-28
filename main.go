@@ -1,3 +1,11 @@
+/* EXERCISES:
+
+8.13:
+	Make the server disconnect idle clients. Hint: calling conn.Close() in another goroutine
+	unblocks active Read calls such as the one done by input.Scan()
+
+*/
+
 package main
 
 import (

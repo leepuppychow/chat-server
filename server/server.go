@@ -4,9 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strings"
 )
 
-type Client chan<- string
+type Client struct {
+	name string
+	out  chan<- string
+}
 
 func Broadcaster(entering, leaving chan Client, messages chan string) {
 	clients := make(map[Client]bool)
@@ -14,32 +18,51 @@ func Broadcaster(entering, leaving chan Client, messages chan string) {
 		select {
 		case msg := <-messages:
 			for c := range clients {
-				c <- msg
+				c.out <- msg
 			}
 		case c := <-entering:
 			clients[c] = true
+			displayAll(clients)
 		case c := <-leaving:
 			delete(clients, c)
-			close(c)
+			close(c.out)
+			displayAll(clients)
 		}
+	}
+}
+
+func displayAll(clients map[Client]bool) {
+	all := "All current clients:\n\n"
+	for c := range clients {
+		all += "\t" + c.name + "\n"
+	}
+	for c := range clients {
+		c.out <- all
 	}
 }
 
 func HandleConn(conn net.Conn, entering, leaving chan Client, messages chan string) {
 	ch := make(chan string)
 	go ClientWriter(conn, ch)
-	who := conn.RemoteAddr().String()
-	ch <- "You are " + who
-	messages <- who + " has arrived"
-	entering <- ch
+
+	reader := bufio.NewReader(conn)
+	ch <- "Enter Username: "
+	name, _ := reader.ReadString('\n')
+
+	newClient := Client{
+		out:  ch,
+		name: strings.TrimSpace(name),
+	}
+	entering <- newClient
+	messages <- newClient.name + " has arrived"
 
 	input := bufio.NewScanner(conn)
 	for input.Scan() {
-		messages <- who + ": " + input.Text()
+		messages <- newClient.name + ": " + input.Text()
 	}
 
-	leaving <- ch
-	messages <- who + " has left."
+	leaving <- newClient
+	messages <- newClient.name + " has left."
 	conn.Close()
 }
 
