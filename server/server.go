@@ -50,10 +50,10 @@ func displayAll(clients map[Client]bool) {
 func HandleConn(conn net.Conn) {
 	ch := make(chan string)
 	go ClientWriter(conn, ch)
+	cli := NewClient(conn, ch)
 
-	newClient := CreateNewClient(conn, ch)
-	SendClientMessage(&newClient, conn)
-	ClientLeaving(&newClient, conn)
+	cli.SendMessage(conn)
+	cli.Leaving(conn)
 }
 
 func ClientWriter(conn net.Conn, ch <-chan string) {
@@ -62,7 +62,7 @@ func ClientWriter(conn net.Conn, ch <-chan string) {
 	}
 }
 
-func CreateNewClient(conn net.Conn, ch chan string) Client {
+func NewClient(conn net.Conn, ch chan string) Client {
 	reader := bufio.NewReader(conn)
 	ch <- "Enter Username: "
 	name, _ := reader.ReadString('\n') // Ignoring errors here
@@ -75,15 +75,15 @@ func CreateNewClient(conn net.Conn, ch chan string) Client {
 	return newClient
 }
 
-func SendClientMessage(client *Client, conn net.Conn) {
+func (c *Client) SendMessage(conn net.Conn) {
 	input := bufio.NewScanner(conn)
 	for input.Scan() {
-		messages <- client.name + ": " + input.Text()
+		messages <- c.name + ": " + input.Text()
 	}
 }
 
-func ClientLeaving(client *Client, conn net.Conn) {
-	leaving <- *client
-	messages <- client.name + " has left."
+func (c *Client) Leaving(conn net.Conn) {
+	leaving <- *c
+	messages <- c.name + " has left."
 	conn.Close()
 }
